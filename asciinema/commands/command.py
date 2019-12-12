@@ -6,6 +6,7 @@ from asciinema.api import Api
 class Command:
 
     def __init__(self, args, config, env):
+        self.args = args
         self.quiet = False
         self.api = Api(config.api_url, env.get("USER"), config.install_id)
 

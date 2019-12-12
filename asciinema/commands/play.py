@@ -10,7 +10,7 @@ class PlayCommand(Command):
         self.filename = args.filename
         self.idle_time_limit = args.idle_time_limit
         self.speed = args.speed
-        self.player = player if player is not None else Player()
+        self.player = player if player is not None else Player(args)
 
     def execute(self):
         try:

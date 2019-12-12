@@ -6,7 +6,15 @@ import asciinema.asciicast.events as ev
 from asciinema.term import raw, read_blocking
 
 
+class PlayState(object):
+    PLAYING = 0
+    SKIPPING = 1
+
+
 class Player:
+
+    def __init__(self, args):
+        self.args = args
 
     def play(self, asciicast, idle_time_limit=None, speed=1.0):
         try:
@@ -30,7 +38,62 @@ class Player:
         paused = False
         pause_time = None
 
+        play_seconds = self.args.play_seconds
+        skip_seconds = self.args.skip_seconds
+
+        play_seconds = play_seconds * 1.0 / speed
+        skip_seconds = skip_seconds * 1.0 / speed
+
+        exit_after_play = play_seconds > 0 >= skip_seconds
+
+        skip_before_play = skip_seconds > 0 >= play_seconds
+
+        skip_play_mode = play_seconds > 0 and skip_seconds > 0
+        if skip_play_mode:
+            skip_before_play = False
+
+        current_state = PlayState.SKIPPING if skip_before_play else PlayState.PLAYING
+        already_play_seconds = 0.0
+        already_skip_seconds = 0.0
+        last_t = 0.0
+
         for t, _type, text in stdout:
+
+            # skipping state
+            if skip_seconds > 0 and current_state == PlayState.SKIPPING:
+                already_skip_seconds += (t - last_t)
+
+                if already_skip_seconds < skip_seconds:
+                    last_t = t
+
+                    sys.stdout.write(text)
+                    sys.stdout.flush()
+
+                    continue
+                else:
+                    base_time = time.time() - t
+                    already_skip_seconds = 0.0
+                    current_state = PlayState.PLAYING
+
+            # playing state
+            if play_seconds > 0 and current_state == PlayState.PLAYING:
+                if already_play_seconds > play_seconds:
+                    last_t = t
+                    already_play_seconds = 0.0
+                    current_state = PlayState.SKIPPING
+
+                    sys.stdout.write(text)
+                    sys.stdout.flush()
+
+                    if exit_after_play:
+                        break
+
+                    continue
+                else:
+                    already_play_seconds += (t - last_t)
+
+            last_t = t
+
             delay = t - (time.time() - base_time)
 
             while stdin and not ctrl_c and delay > 0:
